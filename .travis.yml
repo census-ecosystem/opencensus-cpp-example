@@ -1,0 +1,22 @@
+language: cpp
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: false
+      env: BAZEL_OS=linux
+    - os: osx
+      env: BAZEL_OS=darwin
+
+compiler: clang
+env: BAZEL_OPTIONS="--local_resources=4096,2,1.0 --copt=-Werror=thread-safety"
+
+before_install:
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.11.1/bazel-0.11.1-installer-${BAZEL_OS}-x86_64.sh
+  - chmod +x bazel-0.11.1-installer-${BAZEL_OS}-x86_64.sh
+  - ./bazel-0.11.1-installer-${BAZEL_OS}-x86_64.sh --user
+
+script:
+  # We can't use --noshow_progress because Travis terminates the
+  # build after 10 mins without output.
+  - bazel build $BAZEL_OPTIONS --experimental_ui_actions_shown=1 -k //trace:example //helloworld:helloworld //grpc:all
