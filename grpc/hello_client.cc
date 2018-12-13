@@ -17,8 +17,10 @@
 #include <memory>
 #include <string>
 
-#include <grpc++/grpc++.h>
+#include <grpcpp/grpcpp.h>
+#include <grpcpp/opencensus.h>
 
+#include "absl/time/clock.h"
 #include "grpc/hello.grpc.pb.h"
 #include "grpc/hello.pb.h"
 #include "grpc/stackdriver.h"
@@ -26,8 +28,8 @@
 #include "opencensus/exporters/stats/stdout/stdout_exporter.h"
 #include "opencensus/exporters/trace/stackdriver/stackdriver_exporter.h"
 #include "opencensus/exporters/trace/stdout/stdout_exporter.h"
-#include "opencensus/plugins/grpc/grpc_plugin.h"
 #include "opencensus/trace/sampler.h"
+#include "opencensus/trace/trace_config.h"
 
 namespace {
 
@@ -37,7 +39,7 @@ using examples::HelloService;
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " host:port [name]\n";
     return 1;
@@ -49,7 +51,7 @@ int main(int argc, char** argv) {
   }
 
   // Register the OpenCensus gRPC plugin to enable stats and tracing in gRPC.
-  opencensus::RegisterGrpcPlugin();
+  grpc::RegisterOpenCensusPlugin();
 
   // Register exporters for Stackdriver.
   RegisterStackdriverExporters();
@@ -71,6 +73,8 @@ int main(int argc, char** argv) {
   {
     // The client Span ends when ctx falls out of scope.
     grpc::ClientContext ctx;
+    ctx.AddMetadata("key1", "value1");
+
     HelloRequest request;
     HelloReply reply;
     request.set_name(name);
