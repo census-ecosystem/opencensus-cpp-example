@@ -19,8 +19,10 @@
 #include <memory>
 #include <string>
 
-#include <grpc++/grpc++.h>
+#include <grpcpp/grpcpp.h>
+#include <grpcpp/opencensus.h>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "grpc/hello.grpc.pb.h"
@@ -31,7 +33,6 @@
 #include "opencensus/exporters/stats/stdout/stdout_exporter.h"
 #include "opencensus/exporters/trace/stackdriver/stackdriver_exporter.h"
 #include "opencensus/exporters/trace/stdout/stdout_exporter.h"
-#include "opencensus/plugins/grpc/grpc_plugin.h"
 #include "opencensus/stats/stats.h"
 #include "opencensus/trace/sampler.h"
 #include "opencensus/trace/span.h"
@@ -54,14 +55,18 @@ opencensus::stats::MeasureInt64 LettersMeasure() {
   return measure;
 }
 
-opencensus::stats::TagKey CaseKey() {
-  static const opencensus::stats::TagKey key =
-      opencensus::stats::TagKey::Register("example_uppercased");
+opencensus::tags::TagKey CaseKey() {
+  static const opencensus::tags::TagKey key =
+      opencensus::tags::TagKey::Register("example_uppercased");
   return key;
 }
 
+absl::string_view ToStringView(const ::grpc::string_ref &s) {
+  return absl::string_view(s.data(), s.size());
+}
+
 // A helper function that performs some work in its own Span.
-void PerformWork(opencensus::trace::Span* parent) {
+void PerformWork(opencensus::trace::Span *parent) {
   auto span = opencensus::trace::Span::StartSpan("internal_work", parent);
   span.AddAttribute("my_attribute", "blue");
   span.AddAnnotation("Performing work.");
@@ -70,11 +75,10 @@ void PerformWork(opencensus::trace::Span* parent) {
 }
 
 class HelloServiceImpl final : public HelloService::Service {
-  grpc::Status SayHello(grpc::ServerContext* context,
-                        const HelloRequest* request,
-                        HelloReply* reply) override {
-    opencensus::trace::Span span =
-        opencensus::GetSpanFromServerContext(context);
+  grpc::Status SayHello(grpc::ServerContext *context,
+                        const HelloRequest *request,
+                        HelloReply *reply) override {
+    opencensus::trace::Span span = grpc::GetSpanFromServerContext(context);
     span.AddAttribute("my_attribute", "red");
     span.AddAnnotation(
         "Constructing greeting.",
@@ -88,14 +92,23 @@ class HelloServiceImpl final : public HelloService::Service {
     opencensus::stats::Record(
         {{LettersMeasure(), request->name().size()}},
         {{CaseKey(), isupper(request->name()[0]) ? "upper" : "lower"}});
+    // Give feedback on stderr.
     std::cerr << "SayHello RPC handled.\n";
+    std::cerr << "  Metadata:\n";
+    auto metadata = context->client_metadata();
+    for (const auto &mdpair : metadata) {
+      std::cerr << "    \"" << absl::CEscape(ToStringView(mdpair.first))
+                << "\": \"" << absl::CEscape(ToStringView(mdpair.second))
+                << "\"\n";
+    }
+    std::cerr << "  (end of metadata)\n";
     return grpc::Status::OK;
   }
 };
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   // Handle port argument.
   int port = 0;
   if (argc == 2) {
@@ -106,10 +119,10 @@ int main(int argc, char** argv) {
   }
 
   // Register the OpenCensus gRPC plugin to enable stats and tracing in gRPC.
-  opencensus::RegisterGrpcPlugin();
+  grpc::RegisterOpenCensusPlugin();
 
   // Register the gRPC views (latency, error count, etc).
-  opencensus::RegisterGrpcViewsForExport();
+  grpc::RegisterOpenCensusViewsForExport();
 
   // Register exporters for Stackdriver.
   RegisterStackdriverExporters();

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "io_opencensus_cpp",
     strip_prefix = "opencensus-cpp-master",
@@ -29,12 +31,19 @@ http_archive(
 # gRPC
 http_archive(
     name = "com_github_grpc_grpc",
+    strip_prefix = "grpc-master",
     urls = ["https://github.com/grpc/grpc/archive/master.tar.gz"],
-    strip_prefix = "grpc-master"
 )
 
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
+
 grpc_deps()
+
+# Used by prometheus-cpp.
+local_repository(
+    name = "net_zlib_zlib",
+    path = "tools/zlib",
+)
 
 # Prometheus
 http_archive(
@@ -43,8 +52,10 @@ http_archive(
     urls = ["https://github.com/jupp0r/prometheus-cpp/archive/master.zip"],
 )
 
-load("@com_github_jupp0r_prometheus_cpp//:repositories.bzl",
-     "load_civetweb")
+load(
+    "@com_github_jupp0r_prometheus_cpp//:repositories.bzl",
+    "load_civetweb",
+)
 
 # Load Prometheus dependencies individually since we load some of them above.
 load_civetweb()
