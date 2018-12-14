@@ -15,7 +15,8 @@
 find_package(Threads REQUIRED)
 
 add_executable(helloworld helloworld.cc)
-target_link_libraries(helloworld absl::strings
+target_link_libraries(helloworld
+	absl::strings
 	opencensus-cpp::exporters_stats_stdout
 	opencensus-cpp::exporters_trace_stdout
 	opencensus-cpp::stats

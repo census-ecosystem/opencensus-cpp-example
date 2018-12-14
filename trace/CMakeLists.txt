@@ -15,7 +15,8 @@
 find_package(Threads REQUIRED)
 
 add_executable(example example.cc)
-target_link_libraries(example absl::synchronization
+target_link_libraries(example
+	absl::synchronization
 	absl::time
 	opencensus-cpp::trace
 	Threads::Threads)
